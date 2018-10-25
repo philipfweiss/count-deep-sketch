@@ -3,4 +3,4 @@ sys.path.insert(0, '../lib')
 
 from CountMinSketch import CountMinSketch
 
-CountMinSketch(5,6)
+CountMinSketch(5,6, lambda x: x)
