@@ -25,7 +25,7 @@ class CountMinSketch:
     def estimate(self, item):
         return min([
             self.table[i][self._hash(item, i)] for i in range(self.n)
-        ])
+        ]) - self.bias(item)
 
     def _hash(self, strng, idx):
         h = str(hash((strng, idx)))
