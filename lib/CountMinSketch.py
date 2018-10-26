@@ -1,5 +1,6 @@
 import numpy
 import statistics
+import pickle
 
 """
 General Count-Min-Sketch class.
@@ -42,3 +43,9 @@ class CountMinSketch:
                     for i in range(self.d)
                 ]
             ))
+
+    def writeTableToFile(self, filename):
+        numpy.save(filename, self.table)
+
+    def readTableFromFrile(self, filename):
+        self.table = numpy.load(filename + ".npy")
