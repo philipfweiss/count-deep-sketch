@@ -1,8 +1,6 @@
 import os
 import sys
 import re
-import collections
-import Queue
 scriptPath = os.path.realpath(os.path.dirname(sys.argv[0]))
 os.chdir(scriptPath)
 sys.path.append("../lib")
@@ -12,7 +10,6 @@ from Oracle import Oracle
 # https://github.com/jeffheaton/article-code/blob/master/python/wikipedia/wiki-basic-stream.py
 import xml.etree.ElementTree as etree
 import time
-from multiprocessing.dummy import Pool
 scriptPath = os.path.realpath(os.path.dirname(sys.argv[0]))
 os.chdir(scriptPath)
 
