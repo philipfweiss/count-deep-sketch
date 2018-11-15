@@ -1,6 +1,7 @@
 import os
 import sys
 import re
+import pickle
 scriptPath = os.path.realpath(os.path.dirname(sys.argv[0]))
 os.chdir(scriptPath)
 sys.path.append("../lib")
@@ -16,11 +17,24 @@ os.chdir(scriptPath)
 
 def _hash(w, strng, idx):
     h = str(hash((strng, idx)))
-    a = hashlib.sha1(h.encode('utf-8'))
+    a = hashlib.md5(h.encode('utf-8'))
     return int(a.hexdigest(), 16) % w
 
 
+
 def standardBias(item, state, hash):
+    # features as a part of the state:
+        # frequency of the word in the english laungage,
+        # total number of things added to the cms
+        # the count min
+        # the count max
+        # the max - min
+        # variance of the bucket values
+        # mean of the bucket values
+        # sum of hash bucket values
+        # len(query)
+        # len(query.split(" "))
+        # w * d and w, d
     pass
 # Nicely formatted time string
 def hms_string(sec_elapsed):
@@ -37,25 +51,32 @@ def strip_tag_name(t):
     return t
 
 def proccessPage(page):
+    n = 3
     splitPage = page.split(' ')
-    for word in splitPage:
-        word = re.sub('[^a-zA-Z]+', '', word)
-        cms.record(word)
-        oracle.record(word)
+    splitPage = list(map(lambda w: re.sub('[^a-zA-Z]+', '', w), splitPage))
+    splitPage = list(filter(lambda w: w != "" and w is not None, splitPage))
+    for i in range(int(len(splitPage) / n)):
+        words = splitPage[i * n: (i + 1) * n]
+        string = " ".join(words)
+        cms.record(string)
+        oracle.record(string)
+
 
 
 if __name__ == '__main__':
 
-    cms = CountMinSketch(0.001, 0.00001, _hash, (lambda x, y, z: 0))
+    EPSILON = 0.005
+    DELTA = 0.00001
+    cms = CountMinSketch(EPSILON, DELTA, _hash, (lambda x, y, z: 0))
     oracle = Oracle()
 
     FILENAME_WIKI = 'enwiki-latest-pages-articles1.xml-p10p30302'
     ENCODING = "utf-8"
-    TEST_SET_SIZE = 1000
+    TEST_SET_SIZE = 100000
     CMS_FILE = 'cmsSaved'
     ORACLE_FILE = 'oracleSaved'
-    RECOMPUTE = False
-    EPSILON = 150
+    METADATA_FILE = 'metadataSaved'
+    RECOMPUTE = True
 
     if RECOMPUTE:
         totalCount = 0
@@ -70,7 +91,7 @@ if __name__ == '__main__':
                     print(totalCount)
                     last = totalCount
                 if event == 'start':
-                    if tname == 'text' and elem.text is not None:
+                    if elem.text is not None:
                         proccessPage(elem.text)
                         totalCount += 1
                         words += len(elem.text)
@@ -84,25 +105,34 @@ if __name__ == '__main__':
 
         cms.writeTableToFile(CMS_FILE)
         oracle.writeToFile(ORACLE_FILE)
+        f = open(METADATA_FILE, 'w+')
+        f.write(pickle.dumps((words)))
+        f.close()
     else:
+        f = open(METADATA_FILE, 'r')
+        (totalCount) = pickle.loads(f.read())
+        f.close()
         cms.readTableFromFrile(CMS_FILE)
         oracle.readFromFrile(ORACLE_FILE)
 
-    totalCount = len(oracle.freq.keys())
-
-    numWords = 0
-    wordsDifferent = 0
-    errorRate = []
+    numWords = 1
+    runningTotalCount = 1
+    epsTimesCount = totalCount * EPSILON
+    numErrors = 0
+    errorSummedRate = 0
     for word in oracle.freq.keys():
-        numWords += 1
+        if word != '' and word is not None:
+            numWords += 1
+            oracleEstimate = oracle.estimate(word)
+            runningTotalCount += oracleEstimate
+            estimate = cms.estimate(word)
+            errorSummedRate += estimate - oracleEstimate
+            if estimate >= oracleEstimate + epsTimesCount:
+                numErrors += 1
         if numWords % 1000 == 0:
-            print("number of words so far ", numWords, " num errors ", wordsDifferent, " error rate ", 1.0*wordsDifferent/numWords)
-        error = abs(cms.estimateRevised(word) - oracle.estimate(word))
-        if (error > EPSILON):
-            errorRate.append(error)
-            wordsDifferent += 1
+            print("number of words so far ", numWords, " number of incorrect words", numErrors, " error rate ", 1.0 * numErrors / numWords)
 
-    print("Average Error: {:,}".format(sum(errorRate)/len(errorRate)))
-    print("Total Number of Words: {:,}".format(numWords))
-    print("Number of Words that are wrong: {:,}".format(numWords))
-    print("Error Rage: {:,}".format(1.0 * wordsDifferent/numWords))
+    print(numErrors, numWords)
+    print("Total Number of Distinct Words: {:,}".format(numWords))
+    print("Total Error Rate: {:,}".format(1.0 * numErrors / numWords))
+    print("Expected Error Rate: {:,}".format(DELTA))
