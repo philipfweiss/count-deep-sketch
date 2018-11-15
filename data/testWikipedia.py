@@ -177,6 +177,10 @@ if __name__ == '__main__':
     mlModel.train_model(cleaned_train_set)
     # pickle.dump(mlModel, 'mlmodel' + str(time.time()))
 
+
+
+
+    #TODO this is the section you touch to get results!
     print('beginning evaluation')
     numWords = 1
     runningTotalCount = 1
