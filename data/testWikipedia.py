@@ -20,9 +20,14 @@ def _hash(w, strng, idx):
     a = hashlib.md5(h.encode('utf-8'))
     return int(a.hexdigest(), 16) % w
 
+def featureExtractor(item, state, hash):
+    freqInEnglish = 5
+    numItemsInCMS = sum(state[0])
+    [state[i][hash(self.w, item, i)] for i in range(self.d)]
 
 
 def standardBias(item, state, hash):
+    features = featureExtractor(item, state, hash)
     # features as a part of the state:
         # frequency of the word in the english laungage,
         # total number of things added to the cms
@@ -67,7 +72,7 @@ if __name__ == '__main__':
 
     EPSILON = 0.005
     DELTA = 0.00001
-    cms = CountMinSketch(EPSILON, DELTA, _hash, (lambda x, y, z: 0))
+    cms = CountMinSketch(EPSILON, DELTA, _hash, standardBias)
     oracle = Oracle()
 
     FILENAME_WIKI = 'enwiki-latest-pages-articles1.xml-p10p30302'

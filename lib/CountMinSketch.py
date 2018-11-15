@@ -30,7 +30,7 @@ class CountMinSketch:
         return (min([
             self.table[i][self.hash(self.w, item, i)] for i in range(self.d)
         ]) - self.bias(
-            item, self.table, self.hash)
+            item, self.table, self.hash, w, d)
         )
 
     ## TODO: Max implement defaultbias https://en.wikipedia.org/wiki/Count%E2%80%93min_sketch
