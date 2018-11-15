@@ -13,7 +13,7 @@ class CountMinSketch:
         self.table = numpy.zeros((self.d, self.w))
         self.hash = hash
         self.bias = biasFunc
-    
+
 
     """
     Records an item being streamed into the CountMinSketch.
@@ -32,8 +32,10 @@ class CountMinSketch:
     Estimates the frequency of item.
     """
     def estimate(self, item):
-        return (self.estimateIgnoringBias(item) - self.bias(
-            item, self.table, self.hash, self.w, self.d)
+        # print(self.estimateIgnoringBias(item))
+        return max(
+            0,
+            self.estimateIgnoringBias(item) - self.bias(item, self.table, self.hash, self.w, self.d)[0]
         )
 
     ## TODO: Max implement defaultbias https://en.wikipedia.org/wiki/Count%E2%80%93min_sketch
@@ -41,7 +43,7 @@ class CountMinSketch:
         return min(
             self.estimate(item),
             statistics.median(
-                [ 
+                [
                     ((self.w)*self.table[i][self.hash(self.w, item, i)] - (sum(self.table[0]))/(self.w - 1))
                     for i in range(self.d)
                 ]

@@ -4,6 +4,8 @@ import re
 import pickle
 import numpy as np
 import random
+from gensim.test.utils import common_texts
+from gensim.models import Word2Vec, Phrases
 from sklearn import svm
 scriptPath = os.path.realpath(os.path.dirname(sys.argv[0]))
 os.chdir(scriptPath)
@@ -17,7 +19,8 @@ import time
 scriptPath = os.path.realpath(os.path.dirname(sys.argv[0]))
 os.chdir(scriptPath)
 from sklearn.ensemble import RandomForestRegressor
-
+import math
+import matplotlib.pyplot as plt
 
 #TODO use nueral network with word2vec to do this
 
@@ -28,54 +31,85 @@ def _hash(w, strng, idx):
     a = hashlib.md5(h.encode('utf-8'))
     return int(a.hexdigest(), 16) % w
 
-def featureExtractor(item, state, hash, w, d):
-    # features as a part of the state:
-        # frequency of the word in the english laungage,
-        # total number of things added to the cms
-        # the count min
-        # the count max
-        # the max - min
-        # variance of the bucket values
-        # mean of the bucket values
-        # sum of hash bucket values
-        # len(query)
-        # len(query.split(" "))
-        # w * d and w, d
-    freqInEnglish = random.random() * 5 #TODO worry about this and get it from the internet
-    numItemsInCMS = sum(state[0])
-    countValues = [state[i][hash(w, item, i)] for i in range(d)]
-    countMin = min(countValues)
-    countMax = max(countValues)
-    countDiff = countMax - countMin
-    countVar = np.var(countValues)
-    countMean = np.mean(countValues)
-    countSum = sum(countValues)
-    numberOfCharsInQuery = len(item)
-    numberOfWordsInQuery = len(item.split(" "))
-    return [freqInEnglish, numItemsInCMS, countMax, countDiff, countVar, countMean, countSum, numberOfCharsInQuery, numberOfWordsInQuery, w * d, w, d]
-
 class MLModel:
     def __init__(self):
         self.regr = RandomForestRegressor(max_depth=2, random_state=0, n_estimators=100, n_jobs=-1, verbose=0)
-
+        self.w2v = None
+        self.file = "Saved/modelSaved"
+        self.i = 0
     def train_model(self, train_set):
         # each X example is (item, state, hash, w, d)
         # assumes [[X examples for training], [Y examples for training]]
-        print('training model')
-        x_train_set = [featureExtractor(*ex) for ex in train_set[0]]
+        self.w2v = self.generateW2V()
+        # print(self.w2v['the'], len(self.w2v))
+        print(len(train_set[0]))
+        x_train_set = [self.featureExtractor(*ex) for ex in train_set[0]]
         x_train_set = np.array(x_train_set)
         Y = np.array(train_set[1])
+
         self.regr.fit(x_train_set, Y)
         print(self.regr.feature_importances_)
-        print('training completed')
+        self.writeTableToFile()
+
+    def writeTableToFile(self):
+        np.save(self.file, self.regr)
+
+    def generateW2V(self):
+        bigram_transformer = Phrases(common_texts)
+        print(bigram_transformer)
+        w2v = Word2Vec(bigram_transformer[common_texts], size=100, min_count=1)
+        print(w2v)
+        print("SCREE")
+        return w2v
+
+    def featureExtractor(self, item, state, hash, w, d):
+        # features as a part of the state:
+            # frequency of the word in the english laungage,
+            # total number of things added to the cms
+            # the count min
+            # the count max
+            # the max - min
+            # variance of the bucket values
+            # mean of the bucket values
+            # sum of hash bucket values
+            # len(query)
+            # len(query.split(" "))
+            # w * d and w, d
+        # freqInEnglish = random.random() * 5 #TODO worry about this and get it from the internet
+        numItemsInCMS = sum(state[0])
+        items = item.split(" ")
+        w2v = np.zeros((100))
+        for i in items:
+            if i in self.w2v:
+                w2v += self.w2v[i]
+
+        countValues = [state[i][hash(w, item, i)] for i in range(d)]
+        countMin = min(countValues)
+        countMax = max(countValues)
+        countDiff = countMax - countMin
+        countVar = np.var(countValues)
+        countMean = np.mean(countValues)
+        countSum = sum(countValues)
+        numberOfCharsInQuery = len(item)
+        numberOfWordsInQuery = len(items)
+        # return [1]
+        feature =  np.concatenate((w2v, [numItemsInCMS, countMax, countDiff, countVar, countMean, countSum, numberOfCharsInQuery, numberOfWordsInQuery, w * d, w, d]), axis=0)
+        if self.i % 50 == 0:
+            print(self.i)
+        self.i += 1
+        return feature
+
+
 
     def make_prediction(self, observation):
-        return self.regr.predict(np.array(observation).reshape(1, -1))
+        a = self.regr.predict(np.array(observation).reshape(1, -1))
+        # print("ree", a)
+        return a
 
 mlModel = MLModel()
 
 def standardBias(item, state, hash, w, d):
-    features = featureExtractor(item, state, hash, w, d)
+    features = mlModel.featureExtractor(item, state, hash, w, d)
     return mlModel.make_prediction(features)
 
 # Nicely formatted time string
@@ -126,21 +160,47 @@ def streamWikipediaData(funcToCall):
 
     return totalCount, last, words
 
+def computeWikipediaW2v():
+
+    def wikisentences():
+        i = 0
+        for event, elem in etree.iterparse(FILENAME_WIKI, events=('start', 'end')):
+            if i > 100000: return
+            if elem.text:
+                sentence = [word for word in elem.text.split(' ')]
+                i += 1
+                if (i % 500 == 0):
+                    print(i)
+                yield sentence
+
+    sent = [s for s in wikisentences()]
+    model = Word2Vec(sent)
+    model.wv.save_word2vec_format('Saved/model.txt', binary=False)
+
+    # splitPage = page.split(' ')
+    # splitPage = list(map(lambda w: re.sub('[^a-zA-Z]+', '', w), splitPage))
+    # splitPage = list(filter(lambda w: w != "" and w is not None, splitPage))
+    # for i in range(int(len(splitPage) / n)):
+
+
 if __name__ == '__main__':
 
-    EPSILON = 0.005
-    DELTA = 0.00001
+    EPSILON = 0.00005
+    DELTA = 0.0001
     cms = CountMinSketch(EPSILON, DELTA, _hash, standardBias)
     oracle = Oracle()
 
-    FILENAME_WIKI = 'enwiki-latest-pages-articles1.xml-p10p30302'
+    FILENAME_WIKI = '/Users/philipweiss/Work/count-deep-sketch/data/enwiki-latest-pages-articles1.xml-p10p30302'
     ENCODING = "utf-8"
     TEST_SET_SIZE = 100000
-    CMS_FILE = 'cmsSaved'
-    ORACLE_FILE = 'oracleSaved'
-    METADATA_FILE = 'metadataSaved'
+    CMS_FILE = 'Saved/cmsSaved'
+    ORACLE_FILE = 'Saved/oracleSaved'
+    METADATA_FILE = 'Saved/metadataSaved'
+    W2V_FILE = 'Saved/w2v'
     RECOMPUTE = False
-    PORPORTION_TO_TRAIN_ON = 1.0/1000.0
+    PORPORTION_TO_TRAIN_ON = 1.0/100.0
+
+
 
     if RECOMPUTE:
 
@@ -148,6 +208,7 @@ if __name__ == '__main__':
         print('starting')
 
         totalCount, last, words = streamWikipediaData(proccessPage)
+        # computeWikipediaW2v()
 
         elapsed_time = time.time() - start_time
         print("Total pages: {:,}".format(totalCount))
@@ -186,18 +247,52 @@ if __name__ == '__main__':
     runningTotalCount = 1
     epsTimesCount = totalCount * EPSILON
     numErrors = 0
-    errorSummedRate = 0
-    for word in oracleKeys:
+    smartErrorSummed, naiveErrorSummed = 0, 0
+    # print(len(oracleKeys))
+    naiveErr = []
+    smartErr = []
+    x = []
+    for i, word in enumerate(oracleKeys):
+        if numWords == 400:
+            break
         if word != '' and word is not None:
             numWords += 1
             oracleEstimate = oracle.estimate(word)
             runningTotalCount += oracleEstimate
             estimate = cms.estimate(word)
-            errorSummedRate += estimate - oracleEstimate
+            badEst = cms.estimateIgnoringBias(word)
+            print(estimate - oracleEstimate)
+            # print(abs(estimate - oracleEstimate), abs(badEst - oracleEstimate))
+            smartErrorSummed += abs(estimate - oracleEstimate)
+            naiveErrorSummed += abs(estimate - badEst)
+            # print(
+            #     smartErrorSummed,
+            #     naiveErrorSummed
+            # )
+            naiveErr.append(naiveErrorSummed)
+            smartErr.append(smartErrorSummed)
+            x.append(i)
+
             if estimate >= oracleEstimate + epsTimesCount:
                 numErrors += 1
-        if numWords % 100 == 0:
-            print("number of words so far ", numWords, " number of incorrect words", numErrors, " error rate ", 1.0 * numErrors / numWords)
+            if numWords % 50 == 0:
+                print(word, estimate, oracleEstimate)
+                print("number of words so far ", numWords, " number of incorrect words", numErrors, " error rate ", 1.0 * numErrors / numWords)
+
+    ### Graph Results ###
+    fig1 = plt.figure()
+    ax1 = fig1.add_subplot(111)
+
+    ax1.legend(loc=2)
+    plt.xlabel("Number of words queried")
+    plt.ylabel("Cum. Error (Absolute)")
+    plt.title("Error of Count-Min-Sketch With and Without Learned Bias")
+    ax1.plot(x, naiveErr,label="Cum. Error without learned bias", color="darkcyan")
+    ax1.plot(x, smartErr,label="Cum. Error with learned bias", color="crimson")
+    ax1.legend(loc=2)
+    plt.show()
+    ### Graph Results ###
+
 
     print(numErrors, numWords)
     print("Total Number of Distinct Words: {:,}".format(numWords))
