@@ -52,11 +52,11 @@ def featureExtractor(item, state, hash, w, d):
     countSum = sum(countValues)
     numberOfCharsInQuery = len(item)
     numberOfWordsInQuery = len(item.split(" "))
-    return [freqInEnglish, numItemsInCMS, countMin, countMax, countDiff, countVar, countMean, countSum, numberOfCharsInQuery, numberOfWordsInQuery, w * d, w, d]
+    return [freqInEnglish, numItemsInCMS, countMax, countDiff, countVar, countMean, countSum, numberOfCharsInQuery, numberOfWordsInQuery, w * d, w, d]
 
 class MLModel:
     def __init__(self):
-        self.regr = RandomForestRegressor(max_depth=2, random_state=0, n_estimators=100, n_jobs=-1, verbose=1)
+        self.regr = RandomForestRegressor(max_depth=2, random_state=0, n_estimators=100, n_jobs=-1, verbose=0)
 
     def train_model(self, train_set):
         # each X example is (item, state, hash, w, d)
@@ -64,15 +64,13 @@ class MLModel:
         print('training model')
         x_train_set = [featureExtractor(*ex) for ex in train_set[0]]
         x_train_set = np.array(x_train_set)
-        print(x_train_set)
-        print(train_set[1])
         Y = np.array(train_set[1])
         self.regr.fit(x_train_set, Y)
         print(self.regr.feature_importances_)
         print('training completed')
 
     def make_prediction(self, observation):
-        return self.regr.predict(observation)
+        return self.regr.predict(np.array(observation).reshape(1, -1))
 
 mlModel = MLModel()
 
@@ -142,7 +140,7 @@ if __name__ == '__main__':
     ORACLE_FILE = 'oracleSaved'
     METADATA_FILE = 'metadataSaved'
     RECOMPUTE = False
-    PORPORTION_TO_TRAIN_ON = 1.0/100000.0
+    PORPORTION_TO_TRAIN_ON = 1.0/1000.0
 
     if RECOMPUTE:
 
@@ -179,6 +177,7 @@ if __name__ == '__main__':
     mlModel.train_model(cleaned_train_set)
     # pickle.dump(mlModel, 'mlmodel' + str(time.time()))
 
+    print('beginning evaluation')
     numWords = 1
     runningTotalCount = 1
     epsTimesCount = totalCount * EPSILON
@@ -193,7 +192,7 @@ if __name__ == '__main__':
             errorSummedRate += estimate - oracleEstimate
             if estimate >= oracleEstimate + epsTimesCount:
                 numErrors += 1
-        if numWords % 1000 == 0:
+        if numWords % 100 == 0:
             print("number of words so far ", numWords, " number of incorrect words", numErrors, " error rate ", 1.0 * numErrors / numWords)
 
     print(numErrors, numWords)
