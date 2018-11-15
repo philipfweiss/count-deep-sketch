@@ -13,7 +13,7 @@ def standardBias(item, state, hash):
     pass
 
 
-cms = CountMinSketch(0.001, 0.00001, _hash, (lambda x, y, z: 0))
+cms = CountMinSketch(0.001, 0.00001, _hash, (lambda x, y, z, w, d: 0))
 oracle = Oracle()
 
 for i in range(50):
