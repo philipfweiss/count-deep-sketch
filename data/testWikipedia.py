@@ -40,7 +40,7 @@ class MLModel:
     def train_model(self, train_set):
         # each X example is (item, state, hash, w, d)
         # assumes [[X examples for training], [Y examples for training]]
-        self.w2v = self.generateW2V()
+        # self.w2v = self.generateW2V()
         # print(self.w2v['the'], len(self.w2v))
         print(len(train_set[0]))
         x_train_set = [self.featureExtractor(*ex) for ex in train_set[0]]
@@ -59,7 +59,6 @@ class MLModel:
         print(bigram_transformer)
         w2v = Word2Vec(bigram_transformer[common_texts], size=100, min_count=1)
         print(w2v)
-        print("SCREE")
         return w2v
 
     def featureExtractor(self, item, state, hash, w, d):
@@ -78,10 +77,10 @@ class MLModel:
         # freqInEnglish = random.random() * 5 #TODO worry about this and get it from the internet
         numItemsInCMS = sum(state[0])
         items = item.split(" ")
-        w2v = np.zeros((100))
-        for i in items:
-            if i in self.w2v:
-                w2v += self.w2v[i]
+        # w2v = np.zeros((100))
+        # for i in items:
+        #     if i in self.w2v:
+        #         w2v += self.w2v[i]
 
         countValues = [state[i][hash(w, item, i)] for i in range(d)]
         countMin = min(countValues)
@@ -93,7 +92,8 @@ class MLModel:
         numberOfCharsInQuery = len(item)
         numberOfWordsInQuery = len(items)
         # return [1]
-        feature =  np.concatenate((w2v, [numItemsInCMS, countMax, countDiff, countVar, countMean, countSum, numberOfCharsInQuery, numberOfWordsInQuery, w * d, w, d]), axis=0)
+        feature = [numItemsInCMS, countMax, countDiff, countVar, countMean, countSum, numberOfCharsInQuery, numberOfWordsInQuery, w * d, w, d]
+        # feature =  np.concatenate((w2v, [numItemsInCMS, countMax, countDiff, countVar, countMean, countSum, numberOfCharsInQuery, numberOfWordsInQuery, w * d, w, d]), axis=0)
         if self.i % 50 == 0:
             print(self.i)
         self.i += 1
@@ -186,7 +186,7 @@ def computeWikipediaW2v():
 if __name__ == '__main__':
 
     EPSILON = 0.00005
-    DELTA = 0.0001
+    DELTA = 0.001
     cms = CountMinSketch(EPSILON, DELTA, _hash, standardBias)
     oracle = Oracle()
 
