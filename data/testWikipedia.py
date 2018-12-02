@@ -130,7 +130,7 @@ training_set = []
 testing_set = []
 
 def proccessPage(page):
-    n = 3
+    n = 1
     splitPage = page.split(' ')
     splitPage = list(map(lambda w: re.sub('[^a-zA-Z]+', '', w), splitPage))
     splitPage = list(filter(lambda w: w != "" and w is not None, splitPage))
@@ -189,7 +189,6 @@ if __name__ == '__main__':
     DELTA = 0.001
     cms = CountMinSketch(EPSILON, DELTA, _hash, standardBias)
     oracle = Oracle()
-
     FILENAME_WIKI = '/Users/philipweiss/Work/count-deep-sketch/data/enwiki-latest-pages-articles1.xml-p10p30302'
     ENCODING = "utf-8"
     TEST_SET_SIZE = 100000

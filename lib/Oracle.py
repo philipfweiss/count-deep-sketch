@@ -12,7 +12,7 @@ class Oracle:
         return self.freq[item]
 
     def writeToFile(self, filename):
-        f = open(filename, 'w')
+        f = open(filename, 'w+')
         f.write(pickle.dumps(self.freq))
 
     def readFromFrile(self, filename):
