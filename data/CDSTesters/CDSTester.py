@@ -55,33 +55,34 @@ class CDSTester:
 
     def partitionData(self):
         if self.train[0]: return
-        TRAIN_PROP, TEST_PROP, VALIDATE_PROP = 0.5, 0.3, 0.2
+        TRAIN_PROP, TEST_PROP, VALIDATE_PROP = 0.05, 0.1, 0.05
         print("partitioning data")
         oracleKeys = self.oracle.freq.keys()
         for idx, item in enumerate(random.sample(oracleKeys, int(float(len(oracleKeys)) * (TRAIN_PROP + TEST_PROP + VALIDATE_PROP)))):
-            y = self.cms.estimateIgnoringBias(item) - self.oracle.estimate(item)
+            y = self.oracle.estimate(item)
             x = (item, self.cms.table, self.cms.hash, self.cms.w, self.cms.d)
-            mod = (idx % 10) / 10.0
-            if 0 <= mod and mod < TRAIN_PROP:
+            rand = random.uniform(0, 1)
+            if rand < TRAIN_PROP:
                 self.train[0].append(x)
                 self.train[1].append(y)
-            elif TRAIN_PROP <= mod and mod < TRAIN_PROP + TEST_PROP:
+            elif rand < TRAIN_PROP + TEST_PROP:
                 self.test[0].append(x)
                 self.test[1].append(y)
-            else:
+            elif rand < TRAIN_PROP + TEST_PROP + VALIDATE_PROP:
                 self.validation[0].append(x)
                 self.validation[1].append(y)
         print("data partitioned")
+        print("FOO", len(self.validation[0]))
 
     def trainModel(self):
         self.partitionData()
         print("training")
         self.model.train_model(self.train)
         print("training complete")
-
-    def evaluateModel(self):
-        self.partitionData()
-        self.model.evaluate(self.test)
+    #
+    # def evaluateModel(self):
+    #     self.partitionData()
+    #     self.model.evaluate(self.test)
 
     def evaluateResults(self):
         self.partitionData()
@@ -90,11 +91,15 @@ class CDSTester:
         runningTotalCount = 1
         epsTimesCount = self.item_count * self.cmsParams[0]
         numErrors = 0
-        smartErrorSummed, naiveErrorSummed = 0, 0
+        smartErrorSummed, naiveErrorSummed, avsum = 0, 0, 0
         naiveErr = []
         smartErr = []
+        avErr = []
         xAxis = []
         numItems = 0
+        badEstAv = 10
+
+        items = len(self.validation[0])
         for i, (x, y) in enumerate(zip(self.validation[0], self.validation[1])):
             item = x[0]
             if item != '' and item is not None:
@@ -103,16 +108,24 @@ class CDSTester:
                 runningTotalCount += oracleEstimate
                 estimate = self.cms.estimate(item)
                 badEst = self.cms.estimateIgnoringBias(item)
-                print(estimate - oracleEstimate)
+                badEstAv = (badEstAv + (badEst - oracleEstimate)) / 2.0
+
+
+                print("_____")
+                print("ITEM: ", item)
+                print("Smart error", estimate - oracleEstimate)
+                print("Naive error", badEst - oracleEstimate)
+                print("Average Error", badEstAv - oracleEstimate)
+                # print("_____")
+
                 # print(abs(estimate - oracleEstimate), abs(badEst - oracleEstimate))
                 smartErrorSummed += abs(estimate - oracleEstimate)
-                naiveErrorSummed += abs(estimate - badEst)
-                # print(
-                #     smartErrorSummed,
-                #     naiveErrorSummed
-                # )
+                naiveErrorSummed += abs(badEst - oracleEstimate)
+                avsum += badEstAv
                 naiveErr.append(naiveErrorSummed)
                 smartErr.append(smartErrorSummed)
+                avErr.append(avsum + 30)
+
                 xAxis.append(i)
 
                 if estimate >= oracleEstimate + epsTimesCount:
@@ -127,10 +140,12 @@ class CDSTester:
 
         ax1.legend(loc=2)
         plt.xlabel("Number of words queried")
-        plt.ylabel("Cum. Error (Absolute)")
-        plt.title("Error of Count-Min-Sketch With and Without Learned Bias")
-        ax1.plot(xAxis, naiveErr,label="Cum. Error without learned bias", color="darkcyan")
-        ax1.plot(xAxis, smartErr,label="Cum. Error with learned bias", color="crimson")
+        plt.ylabel("Cumulative Error (Absolute)")
+        plt.title("Cumulative Error of Count-Min-Sketch With and Without Learned Bias (No GloVE)")
+        ax1.plot(xAxis, naiveErr,label="Cumulative Error without learned bias", color="darkcyan")
+        ax1.plot(xAxis, smartErr,label="Cumulative Error with learned bias", color="crimson")
+        # ax1.plot(xAxis, avErr ,label="Cum. Error with average bias", color="black")
+
         ax1.legend(loc=2)
         plt.show()
         ### Graph Results ###
@@ -143,6 +158,8 @@ class CDSTester:
 
     def standardBias(self, item, state, hash, w, d):
         features = self.model.featureExtractor(item, state, hash, w, d)
+        print(features, self.model.make_prediction(features))
+
         return self.model.make_prediction(features)
 
     def _hash(self, w, strng, idx):
