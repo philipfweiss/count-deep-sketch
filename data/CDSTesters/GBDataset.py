@@ -6,27 +6,27 @@ import re
 import random
 import numpy as np
 import spacy
+
 spacy.prefer_gpu()
 nlp = spacy.load('en_core_web_sm')
 
+i = 0
 
 class GBDataset(Dataset):
     def __init__(self):
         pass
 
-    def proccessPage(self, page, n_gram):
-        pass
-
     def getGenerator(self, n_gram):
         directory = '/Users/philipweiss/Work/count-deep-sketch/data/Gut/Gutenberg/txt'
-        for filename in os.listdir(directory):
+        numFiles = len(os.listdir(directory))
+        for idx, filename in enumerate(os.listdir(directory)):
+            print("%d / %d" % (idx, numFiles))
             with open(directory + "/" + filename) as f:
-                if random.uniform(0, 1) < .01:
-                    print(filename)
+                if random.uniform(0, 1) < .125:
                     for line in f.readlines():
                         stripped = [re.sub(r'[^\w\s]','',s) for s in line.strip().split()]
                         for i in range(len(stripped) - n_gram + 1):
-                            yield " ".join(stripped[i:i+n_gram])
+                            yield (" ".join(stripped[i:i+n_gram])).lower()
 
 
     def getName(self):
@@ -46,12 +46,11 @@ class MLModel:
         # self.w2v = self.generateW2V()
         # print(self.w2v['the'], len(self.w2v))
         totalLen = len(train_set[0])
-        print(totalLen)
 
         x_train_set = np.array([self.featureExtractor(*item) for item in train_set[0]])
-        Y = np.array(train_set[1]).reshape(1, -1)
+        Y = np.array(train_set[1])
 
-        print(x_train_set, Y)
+        # print(len(x_train_set), len(Y))
         self.regr.fit(x_train_set, Y)
         print(self.regr.feature_importances_)
         self.writeTableToFile()
@@ -94,7 +93,8 @@ class MLModel:
 
 
 
-    def featureExtractor(self, item, state, hash, w, d):
+    def featureExtractor(self, item, state, hash, w, d, in_hh):
+        # return self.nlpfeatures(item)
         numItemsInCMS = sum(state[0])
         items = item.split(" ")
         countValues = [state[i][hash(w, item, i)] for i in range(d)]
@@ -106,16 +106,24 @@ class MLModel:
         countSum = sum(countValues)
         numberOfCharsInQuery = len(item)
         numberOfWordsInQuery = len(items)
-        feature = [countDiff, countVar, countMean, countSum, numberOfCharsInQuery] + self.nlpfeatures(item)
+        in_hh = 1 if in_hh else 0
+        feature = [countDiff, countVar, countMean, countSum, numberOfCharsInQuery, in_hh] + self.nlpfeatures(item)
+        if self.i % 50 == 0:
+            print(self.i)
+        self.i+=1
         return feature
 
 
     def nlpfeatures(self, item):
         doc = nlp(item.decode('utf8'))
-        features = [0,0]
+        features = [-1,-1, -1, -1]
         for token in doc:
+            # print(token.text)
             features[0] = 1.0 if token.is_stop else 0.
             features[1] = 1.0 if token.is_alpha else 0.
+            features[2] = 1.0 if dictionary.check(token) else 0.
+            features[3] = len(token)
+        # print(doc, features)
         return features
 
         ## Length
