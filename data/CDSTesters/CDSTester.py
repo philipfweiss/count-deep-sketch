@@ -12,11 +12,11 @@ import matplotlib.pyplot as plt
 scriptPath = os.path.realpath(os.path.dirname(sys.argv[0]))
 os.chdir(scriptPath)
 sys.path.append("../../lib")
-import hashlib
 from CountMinSketch import CountMinSketch
 from Oracle import Oracle
 import enchant
 import spacy
+
 spacy.prefer_gpu()
 nlp = spacy.load('en_core_web_sm')
 
@@ -50,7 +50,6 @@ class CDSTester:
         CMS_FILENAMEhh = "storage/%s-CMSREG" % name
         i = 0
         hh = collections.defaultdict(int)
-
         if recompute:
 
 
@@ -104,7 +103,7 @@ class CDSTester:
 
     def partitionData(self):
         if self.train[0]: return
-        TRAIN_PROP, TEST_PROP, VALIDATE_PROP = 0.04, 0, 0.05
+        TRAIN_PROP, TEST_PROP, VALIDATE_PROP = 0.4, 0, 0.05
         print("partitioning data")
         oracleKeys = self.oracle.freq.keys()
         # for idx, item in enumerate(random.sample(oracleKeys, int(float(len(oracleKeys)) * (TRAIN_PROP + TEST_PROP + VALIDATE_PROP)))):
@@ -132,7 +131,7 @@ class CDSTester:
                 self.validation[1] += [y]
         print("data partitioned")
         print("Trainset", len(self.train[0]))
-        print("FOO", len(self.validation[0]))
+        print("Validation Set", len(self.validation[0]))
 
     def getKeysProportional(self, numToGet):
         print("num", numToGet)

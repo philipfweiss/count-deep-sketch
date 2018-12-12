@@ -1,7 +1,7 @@
 import xml.etree.ElementTree as etree
 from CDSTester import *
 from sklearn.ensemble import RandomForestRegressor
-from GloVEc import *
+# from GloVEc import *
 import re
 import random
 import numpy as np
@@ -17,7 +17,7 @@ class GBDataset(Dataset):
         pass
 
     def getGenerator(self, n_gram):
-        directory = '/Users/philipweiss/Work/count-deep-sketch/data/Gut/Gutenberg/txt'
+        directory = '../Gutenberg/txt'
         numFiles = len(os.listdir(directory))
         for idx, filename in enumerate(os.listdir(directory)):
             print("%d / %d" % (idx, numFiles))
@@ -138,15 +138,17 @@ class MLModel:
         a = self.regr.predict(np.array(observation).reshape(1, -1))
         return a
 
-EPSILON, DELTA = 0.00005, 0.001
-tester = CDSTester(
-    MLModel(),
-    GBDataset(),
-    1,
-    (EPSILON, DELTA)
-)
 
-tester.importDataset(recompute=False)
-tester.trainModel()
-# tester.evaluateModel()
-tester.evaluateResults()
+if __name__ == '__main__':
+    EPSILON, DELTA = 0.00005, 0.001
+    tester = CDSTester(
+        MLModel(),
+        GBDataset(),
+        1,
+        (EPSILON, DELTA)
+    )
+
+    tester.importDataset(recompute=True)
+    tester.trainModel()
+    # tester.evaluateModel()
+    tester.evaluateResults()
